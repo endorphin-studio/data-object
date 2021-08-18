@@ -52,9 +52,8 @@ abstract class BaseObject implements \JsonSerializable
         $this->data = $data;
 
         foreach ($this->data as $key => $value) {
-            $field = $this->convertFieldName($key);
             if (is_array($value)) {
-                $this->setProperty($field, $this->fromArray($field, $value));
+                $this->setProperty($key, $this->fromArray($key, $value));
             }
         }
 
