@@ -38,10 +38,13 @@ abstract class BaseObject implements \JsonSerializable
      * @var string[]
      * List of primitives
      */
-    private array $primitiveTypes = [
+    protected array $primitiveTypes = [
         'int',
         'integer',
-        'string'
+        'string',
+        'boolean',
+        'double',
+        'string',
     ];
 
     public function __construct(array $data = [])
@@ -308,5 +311,135 @@ abstract class BaseObject implements \JsonSerializable
     {
         $jsonObject = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
         return new static($jsonObject);
+    }
+
+    /**
+     * @return array
+     * Return array with names of properties
+     */
+    public function getPropertyNames(): array
+    {
+        return array_keys($this->toArray());
+    }
+
+    /**
+     * @param string $propertyName
+     * @return bool
+     * Return true if property is list or array
+     */
+    public function isList(string $propertyName): bool
+    {
+        return is_array($this->getProperty($propertyName));
+    }
+
+    /**
+     * @param string $propertyName
+     * @return bool
+     * Return true if property is object or list of object
+     */
+    public function isObject(string $propertyName): bool
+    {
+        $value = $this->getProperty($propertyName);
+        if (is_object($value)) {
+            return true;
+        }
+        if (in_array($propertyName, $this->listFields, true) && $this->isList($propertyName) && is_object($value[0])) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @param string $propertyName
+     * @return bool
+     * Return true if property has primitive type (string, integer, boolean)
+     */
+    public function isPrimitive(string $propertyName): bool
+    {
+        return in_array(gettype($this->getProperty($propertyName)), $this->primitiveTypes, true);
+    }
+
+    protected function filterProperties(string $filterFunction): array
+    {
+        if (!method_exists($this, $filterFunction)) {
+            return [];
+        }
+
+        $properties = $this->getPropertyNames();
+        $result = [];
+        foreach ($properties as $property) {
+            if($this->$filterFunction($property)) {
+                $result[] = $property;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * @return array
+     * Return property names which has primitive type (string, integer, boolean)
+     */
+    public function getPrimitivePropertyNames(): array
+    {
+        return $this->filterProperties('isPrimitive');
+    }
+
+    /**
+     * @param array $names
+     * @return array
+     * Return array with desired properties and their values
+     */
+    protected function getPropertiesByNames(array $names): array
+    {
+        $result = [];
+        foreach ($names as $property) {
+            $result[$property] = $this->getProperty($property);
+        }
+        return $result;
+    }
+
+    /**
+     * @return array
+     * Return array with properties which has primitive type (integer, string, boolean)
+     */
+    public function getPrimitiveProperties(): array
+    {
+        return $this->getPropertiesByNames($this->getPrimitivePropertyNames());
+    }
+
+    /**
+     * @return array
+     * Return array with property names which are list or array
+     */
+    public function getListPropertyNames(): array
+    {
+        return $this->filterProperties('isList');
+    }
+
+    /**
+     * @return array
+     * Return array with property which are list or array and their values
+     */
+    public function getListProperties(): array
+    {
+        return $this->getPropertiesByNames($this->getListPropertyNames());
+    }
+
+    /**
+     * @return array
+     * Return array with property names which are objects or list of objects
+     */
+    public function getObjectPropertyNames(): array
+    {
+        return $this->filterProperties('isObject');
+    }
+
+    /**
+     * @return array
+     * Return array with properties which are objects or list of objects
+     */
+    public function getObjectProperties(): array
+    {
+        return $this->getPropertiesByNames($this->getObjectPropertyNames());
     }
 }
